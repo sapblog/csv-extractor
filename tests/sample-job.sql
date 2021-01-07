@@ -35,7 +35,7 @@ BEGIN
   delete from csv_exporter_log;
   commit;
   
-  -- Create/re-create the job.
+  -- Create/re-create the job - implicit drop.
   
   CSV_EXPORTER.create_job(
     in_job_name      => job_name,
@@ -53,5 +53,6 @@ BEGIN
   CSV_EXPORTER.add_schema(job_name, 'SOURCE_SCHEMA');
   
   -- Kick off the job.  Future runs for the same job/tables only require this call to run_job.
+    
   CSV_EXPORTER.run_job(job_name);
 END;
