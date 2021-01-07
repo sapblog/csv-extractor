@@ -1,7 +1,14 @@
 # CSV Extractor
 
-Files – mostly in order of use:
-Overview.pptx	This is a very rough outline of how the process runs.
+## Overview
+
+## Installation
+
+## Future steps
+
+## File List
+The files listed below are used mostly in the order they appear.  Please note that you will need to make adjustments to directories and databases schemas to match your environment.
+
 Flow.png	This is a detailed view of the major control elements of the process.
 create-user-grants.sql	Grants needed in the Oracle and HANA databases.  Also includes links to useful links.
 create-tables.sql	Create the tables supporting the processes.
