@@ -120,6 +120,13 @@ run_group = oinstall
 
 /* HANA specific
 
+***  First create the expected landing directory.  This is specified when the
+*** job is created and MUST exist at run time.  NOTE: this could have been
+*** added to the script - but was not required to finish the project.
+
+*** The following creates the loader directory and the export sub-dir.
+mkdir -p /usr/sap/HXE/HDB90/loader/export
+
 *** Tell HANA where it can import CSV files from - this can be anywhere
 *** the HANA processes (hdbadm) have privilege to read.
 */
