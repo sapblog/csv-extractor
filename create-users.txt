@@ -1,0 +1,146 @@
+/*
+##########################################################################
+# This is free and unencumbered software released into the public domain.
+#
+# Anyone is free to copy, modify, publish, use, compile, sell, or
+# distribute this software, either in source code form or as a compiled
+# binary, for any purpose, commercial or non-commercial, and by any
+# means.
+#
+# In jurisdictions that recognize copyright laws, the author or authors
+# of this software dedicate any and all copyright interest in the
+# software to the public domain. We make this dedication for the benefit
+# of the public at large and to the detriment of our heirs and
+# successors. We intend this dedication to be an overt act of
+# relinquishment in perpetuity of all present and future rights to this
+# software under copyright law.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+# OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+# OTHER DEALINGS IN THE SOFTWARE.
+#
+# For more information, please refer to <http://unlicense.org/>
+##########################################################################
+*/
+
+USEFUL LINKS:
+
+-----------------
+*** SSH Access: https://linuxhint.com/setup_ssh_without_passwords/
+-----------------
+
+-----------------
+*** Info on mapping data types
+*** DATA TYPES: https://kabilsapworld.blogspot.com/2018/02/oracle-datatype-to-hana-datatype-mapping.html
+-----------------
+
+*** Info on exporting blobs
+*** BLOB DUMPING: https://community.oracle.com/thread/3551207
+
+-----------------
+-- ORACLE SETUP
+-- Run this as SYS (or equivalent) on Oracle
+-----------------
+
+CREATE USER CSV_EXPORTER IDENTIFIED BY WELCOME01;
+ALTER USER CSV_EXPORTER QUOTA UNLIMITED ON USERS;
+
+-- Needed to login and create packages
+GRANT CREATE SESSION      TO CSV_EXPORTER;
+GRANT CREATE PROCEDURE    TO CSV_EXPORTER;
+GRANT CREATE TABLE        TO CSV_EXPORTER;
+
+-- Needed to run jobs in the database and OS
+GRANT CREATE JOB          TO CSV_EXPORTER;
+GRANT CREATE EXTERNAL JOB TO CSV_EXPORTER;
+GRANT MANAGE SCHEDULER    TO CSV_EXPORTER;  -- To purge job history
+
+-- Get access to the necessary packages..
+GRANT EXECUTE ON DBMS_SCHEDULER TO CSV_EXPORTER;
+GRANT EXECUTE ON SYS.UTL_FILE   TO CSV_EXPORTER;
+GRANT EXECUTE ON SYS.DBMS_SQL   TO CSV_EXPORTER;
+
+-- Working directory - this could be anything on
+-- on the Oracle box.
+CREATE OR REPLACE DIRECTORY LOADER_DIR AS '/u02/hhs';
+GRANT READ,WRITE ON DIRECTORY LOADER_DIR TO CSV_EXPORTER;
+
+-----------------------------
+*** Run OS jobs from inside the database.
+*** The following adjustment is required in the Oracle config to set the OS user
+*** that Oracle uses to run jobs.
+-----------------------------
+EDIT THIS FILE: /u01/app/oracle/product/version/db_1/rdbms/admin/externaljob.ora
+(your path may be different).
+
+# $Header: externaljob.ora 16-dec-2005.20:47:13 rramkiss Exp $
+#
+# Copyright (c) 2005, Oracle. All rights reserved.
+# NAME
+#   externaljob.ora
+# FUNCTION
+#   This configuration file is used by dbms_scheduler when executing external
+#   (operating system) jobs. It contains the user and group to run external
+#   jobs as. It must only be writable by the owner and must be owned by root.
+#   If extjob is not setuid then the only allowable run_user
+#   is the user Oracle runs as and the only allowable run_group is the group
+#   Oracle runs as.
+#
+# NOTES
+#   For Porters: The user and group specified here should be a lowly privileged
+#                user and group for your platform. For Linux this is nobody
+#                and nobody.
+# MODIFIED
+#     rramkiss   12/09/05 -  Creation
+#
+##############################################################################
+# External job execution configuration file externaljob.ora
+#
+# This file is provided by Oracle Corporation to help you customize
+# your RDBMS installation for your site.  Important system parameters
+# are discussed, and default settings given.
+#
+# This configuration file is used by dbms_scheduler when executing external
+# (operating system) jobs. It contains the user and group to run external
+# jobs as. It must only be writable by the owner and must be owned by root.
+# If extjob is not setuid then the only allowable run_user
+# is the user Oracle runs as and the only allowable run_group is the group
+# Oracle runs as.
+
+run_user = oracle
+run_group = oinstall
+
+-----------------
+-- SAP HANA SETUP
+-----------------
+
+/* HANA specific
+
+*** Tell HANA where it can import CSV files from - this can be anywhere
+*** the HANA processes (hdbadm) have privilege to read.
+*/
+
+hdbsql -i 90 -u system -p Welcome01 "ALTER SYSTEM ALTER CONFIGURATION ('indexserver.ini', 'system') set ('import_export', 'enable_csv_import_path_filter') = 'false' with reconfigure"
+hdbsql -i 90 -u system -p Welcome01 "ALTER SYSTEM ALTER CONFIGURATION ('indexserver.ini', 'system') set ('import_export', 'csv_import_path_filter') = '/usr/sap/HXE/HDB90/loader' with reconfigure"
+
+-- AS SYSTEM: Create the "technical user" we use to run our statements
+-- NOTE: no csv-loader tools are placed in the target schema.
+
+hdbsql HXE=> create user csvadm password Welcome01 NO FORCE_FIRST_PASSWORD_CHANGE;
+0 rows affected (overall time 26.157 msec; server time 24.475 msec)
+
+-- Create our target user/schema where load the Oracle data
+hdbsql HXE=> create user target_schema password Welcome01 NO FORCE_FIRST_PASSWORD_CHANGE;
+0 rows affected (overall time 26.439 msec; server time 24.754 msec)
+
+--AS TARGET_SCHEMA: Let the technical user have access to the target schema - this could be more restricted.
+hdbsql=>  grant create any on schema target_schema to csvadm;
+0 rows affected (overall time 11.636 msec; server time 9893 usec)
+
+
+
+
